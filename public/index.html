@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#f7f8f5">
+    <meta name="description" content="Interaktywny tester publicznego API Banku Danych Lokalnych GUS. Wybierz metodę, ustaw parametry i sprawdź odpowiedź JSON.">
+    <title>GUS Explorer · Tester API BDL</title>
+    <link rel="stylesheet" href="/style.css">
+    <script type="module" src="/client.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#request-form">Przejdź do formularza</a>
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a class="brand" href="/" aria-label="GUS Explorer, strona główna">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>GUS<span class="brand-light"> Explorer</span></span>
+        </a>
+        <span class="header-caption">Bank Danych Lokalnych</span>
+        <a class="documentation-link" href="https://api.stat.gov.pl/Home/BdlApi" target="_blank" rel="noopener noreferrer">Dokumentacja API <span aria-hidden="true">↗</span><span class="sr-only"> (otwiera nową kartę)</span></a>
+      </div>
+    </header>
+
+    <main class="shell">
+      <section class="intro" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow"><span class="small-dot" aria-hidden="true"></span> PUBLICZNE API GUS · BDL</p>
+          <h1 id="page-title">Odkrywaj dane.<br><span>Testuj zapytania.</span></h1>
+          <p class="intro-description">Wybierz metodę, dodaj parametry i zobacz odpowiedź prosto z Banku Danych Lokalnych.</p>
+        </div>
+        <div class="intro-note">
+          <span class="note-symbol" aria-hidden="true">{ }</span>
+          <p><strong>Jedno zapytanie. Pełny obraz.</strong><br>Adres, status i dane JSON w jednym miejscu.</p>
+        </div>
+      </section>
+
+      <section class="quick-start" aria-labelledby="presets-title">
+        <h2 id="presets-title">Zacznij od przykładu</h2>
+        <div class="presets">
+          <button class="preset" type="button" data-preset="warszawa"><span aria-hidden="true">⌕</span> Wyszukaj Warszawę</button>
+          <button class="preset" type="button" data-preset="population"><span aria-hidden="true">▥</span> Dane · 2024</button>
+          <button class="preset" type="button" data-preset="years"><span aria-hidden="true">◷</span> Dostępne lata</button>
+        </div>
+      </section>
+
+      <div class="workspace">
+        <section class="panel request-panel" aria-labelledby="request-title">
+          <div class="panel-heading">
+            <div class="section-title"><span class="step-number">01</span><h2 id="request-title">Zapytanie</h2></div>
+            <span class="subtle-label" id="endpoint-count">Metody GET</span>
+          </div>
+          <form id="request-form" novalidate>
+            <div class="field endpoint-field">
+              <label for="endpoint">Metoda API</label>
+              <select id="endpoint" name="endpoint" aria-describedby="endpoint-description"></select>
+              <p id="endpoint-description" class="field-help">Wybierz zasób, który chcesz pobrać.</p>
+            </div>
+            <div class="parameters-heading"><h3>Parametry</h3><span class="subtle-label"><span class="required-marker">*</span> wymagane</span></div>
+            <div id="parameters" class="parameters"></div>
+            <div class="url-block">
+              <div class="url-heading"><span class="method-badge">GET</span><span>Podgląd adresu</span></div>
+              <code id="url-preview" class="url-preview"></code>
+              <p id="url-hint" class="field-help" hidden></p>
+            </div>
+            <p id="form-error" class="message message-error" role="alert" hidden></p>
+            <div class="form-actions">
+              <button id="submit" class="button button-primary" type="submit"><span class="button-spinner" aria-hidden="true" hidden></span><span id="submit-label">Wyślij zapytanie</span><span class="button-arrow" aria-hidden="true">→</span></button>
+              <button id="cancel" class="button button-secondary" type="button" hidden>Anuluj</button>
+              <button id="reset" class="reset-button" type="button">Resetuj</button>
+            </div>
+            <p class="request-note">Żądanie zostanie wysłane do publicznego API BDL przez serwer aplikacji.</p>
+          </form>
+        </section>
+
+        <section class="panel response-panel" aria-labelledby="response-title" aria-busy="false">
+          <div class="panel-heading">
+            <div class="section-title"><span class="step-number">02</span><h2 id="response-title">Odpowiedź</h2></div>
+            <span class="format-badge">JSON</span>
+          </div>
+          <div class="response-status-row">
+            <p id="request-status" class="request-status" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><span id="status-text">Gotowy do zapytania</span></p>
+            <span id="duration" class="duration" hidden></span>
+          </div>
+          <div id="empty-state" class="empty-state">
+            <div class="empty-illustration" aria-hidden="true"><span>{</span><i><b></b><b></b><b></b></i><span>}</span></div>
+            <h3>Tu pojawią się Twoje dane</h3>
+            <p>Ustaw parametry po lewej lub wybierz przykład.<br>Potem wyślij pierwsze zapytanie.</p>
+            <span class="empty-shortcut" aria-hidden="true">GET → odpowiedź JSON</span>
+          </div>
+          <div id="loading-state" class="loading-state" hidden aria-hidden="true"><div class="loading-orbit"></div><p>Pobieranie danych z GUS…</p></div>
+          <div id="result-content" class="result-content" hidden>
+            <div class="result-toolbar"><span id="response-summary">Treść odpowiedzi</span><div class="result-actions"><button id="copy" class="text-button" type="button">Kopiuj JSON</button><button id="download" class="text-button" type="button">Pobierz ↓</button></div></div>
+            <pre id="response-json" class="json-output" tabindex="0" aria-label="Treść odpowiedzi JSON"></pre>
+            <details class="response-details"><summary>Szczegóły odpowiedzi</summary><dl><dt>Adres źródłowy</dt><dd id="result-url"></dd><dt>Nagłówki odpowiedzi</dt><dd><pre id="response-headers"></pre></dd></dl></details>
+          </div>
+          <p id="result-notice" class="result-notice" role="status" aria-live="polite" hidden></p>
+        </section>
+      </div>
+
+      <aside class="scope-note" aria-label="Zakres aplikacji"><span class="scope-icon" aria-hidden="true">i</span><p><strong>Tester obejmuje publiczne API BDL.</strong> Usługi REGON / BIR i ich klucze dostępu nie są obsługiwane. Nie wpisuj tu danych logowania ani kluczy API.</p></aside>
+      <footer class="site-footer"><p>Niezależny tester API · Dane: Główny Urząd Statystyczny</p><span>TypeScript <span aria-hidden="true">/</span> REST <span aria-hidden="true">/</span> JSON</span></footer>
+    </main>
+    <noscript><p class="noscript-message">Włącz JavaScript, aby korzystać z interaktywnego testera API.</p></noscript>
+  </body>
+</html>
