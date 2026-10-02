@@ -1,0 +1,149 @@
+name: Deploy branch
+run-name: Deploy ${{ github.ref_name }} at ${{ github.sha }}
+
+on:
+  push:
+    branches:
+      - 'deploy/*'
+  # Fallback for pushes made with GITHUB_TOKEN, and explicit redeploys.
+  # Select the deploy/<port> branch, not main.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serialize a port without interrupting a running Compose operation.
+# Stale runs are rejected again immediately before containers are changed.
+concurrency:
+  group: compose-deploy-${{ github.repository_id }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event_name != 'push' || !github.event.deleted }}
+    # Give this label to runners connected to ONE intended Docker host.
+    runs-on: [self-hosted, linux, deploy-host]
+    timeout-minutes: 45
+    # Configure this environment and any required approvals in GitHub.
+    environment: preview
+    defaults:
+      run:
+        shell: bash
+    env:
+      # Change this path if the deployment Compose file has another name.
+      DEPLOY_COMPOSE_FILE: compose.yaml
+      # Set a repository/environment variable to expose another interface.
+      BIND_ADDRESS: ${{ vars.DEPLOY_BIND_ADDRESS || '127.0.0.1' }}
+      # Optional ABSOLUTE path to a runner-side, read-only configuration file.
+      # No implicit checkout .env file is loaded for interpolation.
+      DEPLOY_ENV_FILE: ${{ vars.DEPLOY_ENV_FILE || '/dev/null' }}
+
+    steps:
+      - name: Validate deployment branch and port
+        run: |
+          set -euo pipefail
+          if [[ ! "$GITHUB_REF" =~ ^refs/heads/deploy/([1-9][0-9]{3,4})$ ]]; then
+            echo '::error::Use deploy/<port>, with an unpadded decimal port from 1024 to 65535.'
+            exit 1
+          fi
+          port="${BASH_REMATCH[1]}"
+          if (( port < 1024 || port > 65535 )); then
+            echo '::error::Host port must be between 1024 and 65535.'
+            exit 1
+          fi
+          echo "HOST_PORT=$port" >> "$GITHUB_ENV"
+          echo "COMPOSE_PROJECT_NAME=deploy-${GITHUB_REPOSITORY_ID}-${port}" >> "$GITHUB_ENV"
+
+      - name: Check out the exact requested commit
+        # actions/checkout v7.0.1; pin updates to a reviewed full commit SHA.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          clean: true
+          persist-credentials: false
+
+      - name: Build and deploy this port
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # Keep authentication out of the build/Compose environment and git config.
+          auth_header="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          echo "::add-mask::$auth_header"
+          unset GH_TOKEN
+
+          assert_current() {
+            local current_sha
+            current_sha="$(
+              GIT_CONFIG_COUNT=1 \
+              GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL}/.extraheader" \
+              GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $auth_header" \
+              git ls-remote --exit-code origin "$GITHUB_REF" | cut -f1
+            )" || {
+              echo '::error::Cannot read the deployment branch; refusing to deploy.'
+              return 1
+            }
+            if [[ "$current_sha" != "$GITHUB_SHA" ]]; then
+              echo '::error::This run is stale: the deployment branch now points to a different commit.'
+              return 1
+            fi
+          }
+
+          assert_current
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+          [[ -f "$DEPLOY_COMPOSE_FILE" ]] || {
+            echo '::error::Deployment Compose file is missing.'
+            exit 1
+          }
+          [[ "$DEPLOY_ENV_FILE" == /* && -r "$DEPLOY_ENV_FILE" ]] || {
+            echo '::error::DEPLOY_ENV_FILE must be an absolute, readable path.'
+            exit 1
+          }
+          docker info > /dev/null
+          docker compose version
+
+          # HOST_PORT is exported via GITHUB_ENV; Compose interpolates it.
+          # The explicit project name isolates ports within this repository.
+          compose=(docker compose
+            --project-name "$COMPOSE_PROJECT_NAME"
+            --file "$DEPLOY_COMPOSE_FILE"
+            --env-file "$DEPLOY_ENV_FILE")
+
+          # Do not print the fully resolved config: it can contain secrets.
+          "${compose[@]}" config --quiet
+          # Pull/build BEFORE replacing running containers. Build failures leave
+          # the existing stack running. Application services must build this SHA
+          # or reference a SHA-specific image, never a shared mutable app tag.
+          "${compose[@]}" pull --ignore-buildable --policy always
+          "${compose[@]}" build --pull
+
+          # A newer branch push may have arrived while images were building.
+          assert_current
+          unset auth_header
+
+          # Do not run `down` first, delete volumes, or prune the Docker host.
+          # --wait checks healthchecks where defined, otherwise running state.
+          if ! "${compose[@]}" up \
+              --no-build \
+              --pull never \
+              --force-recreate \
+              --remove-orphans \
+              --wait \
+              --wait-timeout 120; then
+            echo '::error::Compose deployment failed. Containers may be partially updated; no automatic rollback was attempted.'
+            "${compose[@]}" ps --all || true
+            exit 1
+          fi
+
+          "${compose[@]}" ps
+          {
+            echo '## Deployment completed'
+            printf '\n- Branch: `%s`\n' "$GITHUB_REF_NAME"
+            printf -- '- Commit: `%s`\n' "$GITHUB_SHA"
+            printf -- '- Host port: `%s`\n' "$HOST_PORT"
+            printf -- '- Bind address: `%s`\n' "$BIND_ADDRESS"
+            printf -- '- Compose project: `%s`\n' "$COMPOSE_PROJECT_NAME"
+            printf '\nNamed volumes are preserved. Services need healthchecks for readiness verification.\n'
+          } >> "$GITHUB_STEP_SUMMARY"
