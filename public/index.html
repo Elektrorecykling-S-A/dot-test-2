@@ -92,7 +92,7 @@
           <div id="loading-state" class="loading-state" hidden aria-hidden="true"><div class="loading-orbit"></div><p>Pobieranie danych z GUS…</p></div>
           <div id="result-content" class="result-content" hidden>
             <div class="result-toolbar"><span id="response-summary">Treść odpowiedzi</span><div class="result-actions"><button id="copy" class="text-button" type="button">Kopiuj JSON</button><button id="download" class="text-button" type="button">Pobierz ↓</button></div></div>
-            <pre id="response-json" class="json-output" tabindex="0" aria-label="Treść odpowiedzi JSON"></pre>
+            <div id="response-json" class="json-output" tabindex="0" role="region" aria-label="Treść odpowiedzi w zagnieżdżonych kontenerach"></div>
             <details class="response-details"><summary>Szczegóły odpowiedzi</summary><dl><dt>Adres źródłowy</dt><dd id="result-url"></dd><dt>Nagłówki odpowiedzi</dt><dd><pre id="response-headers"></pre></dd></dl></details>
           </div>
           <p id="result-notice" class="result-notice" role="status" aria-live="polite" hidden></p>

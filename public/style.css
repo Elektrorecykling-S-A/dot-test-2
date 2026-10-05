@@ -14,11 +14,11 @@
 * { box-sizing: border-box; }
 body { margin: 0; font-size: 14px; line-height: 1.5; }
 button, input, select { font: inherit; }
-button, a, input, select, summary, pre[tabindex] { -webkit-tap-highlight-color: transparent; }
+button, a, input, select, summary, [tabindex] { -webkit-tap-highlight-color: transparent; }
 button { cursor: pointer; }
 button:disabled { cursor: default; }
 button, a, input, select, summary { touch-action: manipulation; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, pre:focus-visible { outline: 3px solid #54a79b; outline-offset: 3px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 3px solid #54a79b; outline-offset: 3px; }
 a { color: inherit; }
 [hidden] { display: none !important; }
 h1, h2, h3, p { margin: 0; }
@@ -128,6 +128,12 @@ select { padding-right: 26px; }
 .response-details dl { margin-bottom: 0; }
 .response-details dt { font-weight: 650; margin-top: 13px; }
 .response-details dd { margin: 6px 0 0; overflow-wrap: anywhere; color: #41534a; }
+.response-card { min-width: min-content; border: 1px solid #78958e; border-radius: 4px; padding: 10px; background: #203540; }
+.response-type { color: #aec8bf; font-size: 10px; line-height: 1.5; margin-bottom: 6px; }
+.response-key { color: #bde7d8; font-size: 13px; font-weight: 600; line-height: 1.6; margin-bottom: 6px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.response-value { min-width: 0; font-size: 14px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.response-value > .response-card + .response-card { margin-top: 9px; }
+.response-value:has(> .response-card) { min-width: 100px; }
 .response-details pre { white-space: pre-wrap; margin: 0; font: 10px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .result-notice { padding: 10px 24px; font-size: 11px; color: #4f6658; background: #f1f7ef; border-top: 1px solid #e4eddf; }
 .scope-note { display: flex; align-items: flex-start; gap: 11px; padding: 19px 2px 23px; color: #718072; font-size: 10px; line-height: 1.7; }
