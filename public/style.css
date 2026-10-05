@@ -129,6 +129,7 @@ select { padding-right: 26px; }
 .response-details dt { font-weight: 650; margin-top: 13px; }
 .response-details dd { margin: 6px 0 0; overflow-wrap: anywhere; color: #41534a; }
 .response-card { min-width: min-content; border: 1px solid #78958e; border-radius: 4px; padding: 10px; background: #203540; }
+.response-card[data-type="array"] { padding-left: 4px; }
 .response-type { color: #aec8bf; font-size: 10px; line-height: 1.5; margin-bottom: 6px; }
 .response-value { min-width: 0; font-size: 14px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
 .response-value > div + div { margin-top: 9px; }

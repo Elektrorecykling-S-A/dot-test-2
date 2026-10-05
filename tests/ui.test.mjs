@@ -233,4 +233,6 @@ test('UI: array indexes retain full numbers and a fixed-width upright vertical l
   assert.match(indexRule, /line-height:\s*1;/);
   assert.match(indexRule, /font-size:\s*14px/);
   assert.match(rowRule, /gap:\s*4px/);
+  const arrayCardRule = css.match(/\.response-card\[data-type="array"\]\s*\{([^}]+)\}/)[1];
+  assert.match(arrayCardRule, /padding-left:\s*4px/);
 });
