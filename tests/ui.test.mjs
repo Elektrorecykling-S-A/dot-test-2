@@ -225,9 +225,12 @@ test('UI: array indexes retain full numbers and a fixed-width upright vertical l
   const css = await readFile(new URL('../public/style.css', import.meta.url), 'utf8');
   const rowRule = css.match(/\.response-array-row\s*\{([^}]+)\}/)[1];
   const indexRule = css.match(/\.response-index\s*\{([^}]+)\}/)[1];
-  assert.match(rowRule, /grid-template-columns:\s*1\.65em minmax\(min-content, 1fr\)/);
+  assert.match(rowRule, /grid-template-columns:\s*1em minmax\(min-content, 1fr\)/);
   assert.match(rowRule, /align-items:\s*start/);
   assert.match(indexRule, /writing-mode:\s*vertical-rl/);
   assert.match(indexRule, /text-orientation:\s*upright/);
-  assert.match(indexRule, /width:\s*1\.65em/);
+  assert.match(indexRule, /width:\s*1em/);
+  assert.match(indexRule, /line-height:\s*1;/);
+  assert.match(indexRule, /font-size:\s*14px/);
+  assert.match(rowRule, /gap:\s*4px/);
 });
