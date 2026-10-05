@@ -23,7 +23,7 @@ const duration = element<HTMLSpanElement>('duration');
 const emptyState = element<HTMLDivElement>('empty-state');
 const loadingState = element<HTMLDivElement>('loading-state');
 const resultContent = element<HTMLDivElement>('result-content');
-const resultJson = element<HTMLPreElement>('response-json');
+const resultJson = element<HTMLDivElement>('response-json');
 const resultNotice = element<HTMLParagraphElement>('result-notice');
 const spinner = document.querySelector<HTMLElement>('.button-spinner');
 const presets = document.querySelectorAll<HTMLButtonElement>('[data-preset]');
@@ -232,11 +232,64 @@ function isApiResult(value: unknown): value is ApiResult {
     && 'body' in result && typeof result.headers === 'object' && result.headers !== null;
 }
 
+// Build the full tree without interpreting API values or property names as HTML.
+// An explicit stack also avoids recursive JavaScript calls for deeply nested JSON.
+function responseCard(body: unknown): HTMLDivElement {
+  const root = document.createElement('div');
+  const pending: { card: HTMLDivElement; value: unknown }[] = [{ card: root, value: body }];
+  const typeLabels: Record<string, string> = {
+    object: 'Obiekt (object)', array: 'Tablica (array)', string: 'Tekst (string)',
+    number: 'Liczba (number)', boolean: 'Wartość logiczna (boolean)', null: 'Brak wartości (null)',
+  };
+  while (pending.length > 0) {
+    const { card, value } = pending.pop()!;
+    const type = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
+    card.classList.add('response-card');
+    card.dataset.type = type;
+    const heading = document.createElement('div');
+    heading.className = 'response-type';
+    heading.textContent = typeLabels[type] ?? type;
+    card.append(heading);
+    const content = document.createElement('div');
+    content.className = 'response-value';
+    card.append(content);
+    if (value !== null && typeof value === 'object') {
+      const entries = Object.entries(value);
+      if (entries.length === 0) content.textContent = Array.isArray(value) ? '[]' : '{}';
+      for (const [key, child] of entries) {
+        const childCard = document.createElement('div');
+        const entry = document.createElement('div');
+        if (Array.isArray(value)) {
+          entry.className = 'response-array-row';
+          const index = document.createElement('span');
+          index.className = 'response-index';
+          index.textContent = key;
+          index.setAttribute('aria-label', `Indeks ${key}`);
+          entry.append(index, childCard);
+        } else {
+          entry.className = 'response-property';
+          const keyCard = document.createElement('div');
+          keyCard.className = 'response-key-card';
+          keyCard.setAttribute('aria-label', 'Klucz');
+          childCard.setAttribute('aria-label', 'Wartość');
+          entry.append(keyCard, childCard);
+          pending.push({ card: keyCard, value: key });
+        }
+        content.append(entry);
+        pending.push({ card: childCard, value: child });
+      }
+    } else {
+      content.textContent = typeof value === 'string' ? (value === '' ? '""' : value) : String(value);
+    }
+  }
+  return root;
+}
+
 function displayResult(result: ApiResult): void {
   latestResult = result;
   emptyState.hidden = true;
   resultContent.hidden = false;
-  resultJson.textContent = JSON.stringify(result.body, null, 2) ?? 'null';
+  resultJson.replaceChildren(responseCard(result.body));
   resultJson.scrollTop = 0;
   resultJson.scrollLeft = 0;
   element<HTMLElement>('result-url').textContent = result.url;

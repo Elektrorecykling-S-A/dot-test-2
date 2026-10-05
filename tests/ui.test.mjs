@@ -33,6 +33,40 @@ async function setup(fetchImpl) {
 const result = (overrides = {}) => ({url:'https://bdl.stat.gov.pl/api/v1/years?format=json&lang=pl', status:200, statusText:'OK', durationMs:12, headers:{'content-type':'application/json'}, body:{results:[{zero:0, flag:false, missing:null}]}, ...overrides});
 const response = value => new Response(JSON.stringify(value), {headers:{'content-type':'application/json'}});
 
+function assertCard(card, value) {
+  assert.ok(card.classList.contains('response-card'));
+  const type = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
+  assert.equal(card.dataset.type, type);
+  assert.equal(card.firstElementChild.className, 'response-type');
+  assert.match(card.firstElementChild.textContent, new RegExp(`\\(${type}\\)`));
+  assert.equal(card.children.length, 2);
+  const content = card.lastElementChild;
+  assert.equal(content.className, 'response-value');
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value);
+    assert.equal(content.children.length, entries.length);
+    if (!entries.length) assert.equal(content.textContent, Array.isArray(value) ? '[]' : '{}');
+    entries.forEach(([key, child], index) => {
+      const entry = content.children[index];
+      assert.equal(entry.children.length, 2);
+      if (Array.isArray(value)) {
+        assert.equal(entry.className, 'response-array-row');
+        assert.equal(entry.firstElementChild.className, 'response-index');
+        assert.equal(entry.firstElementChild.textContent, key);
+        assert.equal(entry.firstElementChild.getAttribute('aria-label'), `Indeks ${key}`);
+      } else {
+        assert.equal(entry.className, 'response-property');
+        assert.ok(entry.firstElementChild.classList.contains('response-key-card'));
+        assertCard(entry.firstElementChild, key);
+      }
+      assertCard(entry.lastElementChild, child);
+    });
+  } else {
+    assert.equal(content.children.length, 0);
+    assert.equal(content.textContent, typeof value === 'string' ? (value === '' ? '""' : value) : String(value));
+  }
+}
+
 test('UI: initial preset, all endpoints, fields and source preview', async () => {
   let calls = 0;
   const ui = await setup(async () => { calls++; return response(result()); });
@@ -59,7 +93,7 @@ test('UI: one request at a time and complete safe JSON output', async () => {
   ui.submit(); ui.submit(); assert.equal(calls,1); assert.equal(ui.get('submit').disabled,true);
   const body={results:[{zero:0,flag:false,missing:null,html:'<img src=x onerror=alert(1)>'}]};
   finish(response(result({body}))); await tick(); await tick();
-  assert.deepEqual(JSON.parse(ui.get('response-json').textContent),body);
+  assertCard(ui.get('response-json').firstElementChild,body);
   assert.equal(ui.get('response-json').querySelector('img'),null);
   assert.equal(ui.get('submit').disabled,false);
   assert.equal(ui.get('result-content').hidden,false);
@@ -84,13 +118,14 @@ test('UI: newer preset request wins over stale previous response', async () => {
   assert.equal(requests[0].init.signal.aborted,true);
   requests[1].resolve(response(result({body:{new:true}})));await tick();await tick();
   requests[0].resolve(response(result({body:{old:true}})));await tick();await tick();
-  assert.deepEqual(JSON.parse(ui.get('response-json').textContent),{new:true});
+  assertCard(ui.get('response-json').firstElementChild,{new:true});
   assert.equal(ui.get('submit').disabled,false);
 });
 
 test('UI: upstream429 remains inspectable with retry guidance', async () => {
   const ui=await setup(async()=>response(result({status:429,statusText:'Too Many Requests',headers:{'retry-after':'60'},body:{error:'Limit'}})));
   ui.submit();await tick();await tick();
+  assertCard(ui.get('response-json').firstElementChild, {error:'Limit'});
   assert.match(ui.get('status-text').textContent,/429/);
   assert.match(ui.get('request-status').className,/error/);
   assert.match(ui.get('result-notice').textContent,/60/);
@@ -112,4 +147,92 @@ test('UI: editing input aborts active request and updates source URL', async () 
   assert.equal(signal.aborted,true);
   assert.match(ui.get('url-preview').textContent,/name=Krak%C3%B3w/);
   assert.equal(ui.get('submit').disabled,false);
+});
+
+
+test('UI: every value has a typed card with names, indexes and empty values preserved', async () => {
+  const body = JSON.parse('{"": "", "nested": [{"zero":0,"false":false,"null":null,"emptyArray":[],"emptyObject":{},"text":"first\\nsecond"}],"<script>alert(1)</script>":"<img src=x onerror=alert(1)>"}');
+  const ui = await setup(async () => response(result({body})));
+  ui.submit(); await tick(); await tick();
+  assertCard(ui.get('response-json').firstElementChild, body);
+  assert.equal(ui.get('response-json').querySelector('script, img'), null);
+});
+
+test('UI: top-level scalars, arrays and empty containers remain visible', async () => {
+  for (const body of [null, false, 0, '', 'plain upstream text', [], {}, [1, 'two', null]]) {
+    const ui = await setup(async () => response(result({body})));
+    ui.submit(); await tick(); await tick();
+    assertCard(ui.get('response-json').firstElementChild, body);
+    assert.equal(ui.get('result-content').hidden, false);
+  }
+});
+
+test('UI: copy and download retain the full JSON body rather than card labels', async () => {
+  const body = {results: [{zero: 0, flag: false, missing: null, empty: '', array: [], object: {}}]};
+  const expected = JSON.stringify(body, null, 2);
+  const ui = await setup(async () => response(result({body})));
+  ui.submit(); await tick(); await tick();
+  const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+  const originalCreate = URL.createObjectURL;
+  const originalRevoke = URL.revokeObjectURL;
+  let copied, downloaded;
+  try {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { copied = text; } } });
+    URL.createObjectURL = blob => { downloaded = blob; return 'blob:test'; };
+    URL.revokeObjectURL = () => {};
+    ui.click('#copy'); await tick();
+    ui.click('#download');
+    assert.equal(copied, expected);
+    assert.equal(await downloaded.text(), expected);
+    assert.equal(downloaded.type, 'application/json;charset=utf-8');
+    ui.click('#reset');
+    assert.equal(ui.get('response-json').children.length, 0);
+    copied = null; downloaded = null;
+    ui.click('#copy'); ui.click('#download'); await tick();
+    assert.equal(copied, null); assert.equal(downloaded, null);
+  } finally {
+    if (originalClipboard) Object.defineProperty(navigator, 'clipboard', originalClipboard);
+    else delete navigator.clipboard;
+    URL.createObjectURL = originalCreate; URL.revokeObjectURL = originalRevoke;
+  }
+});
+
+
+test('UI: object keys are full typed cards and array indexes sit outside each value card', async () => {
+  const body = {'': {'a\nb': [false, {'<b>key</b>': null}, []]}, items: Array.from({length: 12}, (_, i) => i)};
+  const ui = await setup(async () => response(result({body})));
+  ui.submit(); await tick(); await tick();
+  assertCard(ui.get('response-json').firstElementChild, body);
+  assert.equal(ui.get('response-json').querySelector('b'), null);
+  const row = [...ui.get('response-json').querySelectorAll('.response-array-row')].find(row => row.firstElementChild.textContent === '11');
+  assert.ok(row);
+  assert.equal(row.lastElementChild.querySelector('.response-index'), null);
+});
+
+
+test('UI: array indexes retain full numbers and a fixed-width upright vertical layout', async () => {
+  const body = Array.from({length: 102}, (_, index) => index);
+  const ui = await setup(async () => response(result({body})));
+  ui.submit(); await tick(); await tick();
+  assertCard(ui.get('response-json').firstElementChild, body);
+  const rows = ui.get('response-json').querySelectorAll('.response-array-row');
+  for (const index of [0, 9, 10, 99, 100, 101]) {
+    assert.equal(rows[index].firstElementChild.textContent, String(index));
+    assert.equal(rows[index].firstElementChild.getAttribute('aria-label'), `Indeks ${index}`);
+  }
+  // DOM tests do not perform layout. Pin the CSS contract separately so the
+  // index gutter cannot grow with digit count or rotate the digits sideways.
+  const css = await readFile(new URL('../public/style.css', import.meta.url), 'utf8');
+  const rowRule = css.match(/\.response-array-row\s*\{([^}]+)\}/)[1];
+  const indexRule = css.match(/\.response-index\s*\{([^}]+)\}/)[1];
+  assert.match(rowRule, /grid-template-columns:\s*1em minmax\(min-content, 1fr\)/);
+  assert.match(rowRule, /align-items:\s*start/);
+  assert.match(indexRule, /writing-mode:\s*vertical-rl/);
+  assert.match(indexRule, /text-orientation:\s*upright/);
+  assert.match(indexRule, /width:\s*1em/);
+  assert.match(indexRule, /line-height:\s*1;/);
+  assert.match(indexRule, /font-size:\s*14px/);
+  assert.match(rowRule, /gap:\s*4px/);
+  const arrayCardRule = css.match(/\.response-card\[data-type="array"\]\s*\{([^}]+)\}/)[1];
+  assert.match(arrayCardRule, /padding-left:\s*4px/);
 });
