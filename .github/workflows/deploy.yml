@@ -21,8 +21,9 @@ concurrency:
 jobs:
   deploy:
     if: ${{ github.event_name != 'push' || !github.event.deleted }}
-    # Give this label to runners connected to ONE intended Docker host.
-    runs-on: [self-hosted, linux, deploy-host]
+    # Match the owner-confirmed Linux X64 host (seba-AI-laptop).
+    # Keep eligible runners on ONE intended Docker host; these labels are not unique.
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 45
     # Configure this environment and any required approvals in GitHub.
     environment: preview
