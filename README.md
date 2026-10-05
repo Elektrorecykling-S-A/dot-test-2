@@ -60,7 +60,9 @@ Repozytorium zawiera workflow wdrożeniowy, ale nie ma workflow testowego dla zw
 
 ## Kontener i przyszłe wdrożenie
 
-`Dockerfile` buduje TypeScript, uruchamia proces jako użytkownik `node` i zawiera rzeczywisty healthcheck. `compose.yaml` jest zgodny z zastanym kontraktem repozytorium: stały port kontenera 8080 oraz wymagany `HOST_PORT` i lokalny `BIND_ADDRESS`. Nie zmieniono workflow wdrożenia.
+`Dockerfile` buduje TypeScript, uruchamia proces jako użytkownik `node` i zawiera rzeczywisty healthcheck. `compose.yaml` używa stałego portu kontenera 8080 oraz wymaganego `HOST_PORT`; bez `BIND_ADDRESS` publikuje port tylko lokalnie.
+
+Workflow dla `deploy/*` domyślnie przekazuje `BIND_ADDRESS=0.0.0.0`, więc kolejne wdrożenia publikują port na wszystkich interfejsach hosta. Zmienna repozytorium/środowiska `DEPLOY_BIND_ADDRESS` pozwala wskazać konkretny adres hosta albo `127.0.0.1`. Działający kontener zmieni nasłuch dopiero przy ponownym wdrożeniu. Dostęp z LAN zależy też od routingu i zapory; wszystkie interfejsy mogą obejmować VPN lub adres publiczny. Aplikacja nie ma logowania ani TLS: nie udostępniaj jej publicznie bez dodatkowych zabezpieczeń.
 
 ```sh
 HOST_PORT=30000 docker compose up --build

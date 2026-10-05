@@ -195,8 +195,8 @@ gh run watch "$RUN_ID" --exit-status
 
 Check the run's `Deployment completed` summary and confirm the branch still points
 to the deployed SHA before reporting success. Never fabricate a public URL from
-the runner name. With the default bind address, access is host-local unless the
-operator provides a reverse proxy or changes the bind address/firewall.
+the runner name. The workflow publishes on all host interfaces by default;
+actual LAN or external reachability depends on routing and firewall rules.
 
 ## Maintainer setup and runtime contract
 
@@ -247,7 +247,12 @@ explicit volume/network names. Additional published ports also need collision-fr
 allocation. Compose project names do not isolate explicitly shared resources.
 
 `DEPLOY_BIND_ADDRESS` is an optional repository/environment variable; default is
-`127.0.0.1`. `DEPLOY_ENV_FILE` optionally names an absolute readable runner-side env
+`0.0.0.0` in the workflow. Set it to a specific host IP or `127.0.0.1` to restrict
+the binding. This default applies on subsequent deployments, not to already
+running containers. All-interface binding can include VPN/public interfaces;
+provide appropriate access controls and TLS before public exposure. Direct Compose
+use without `BIND_ADDRESS` still defaults to `127.0.0.1`.
+`DEPLOY_ENV_FILE` optionally names an absolute readable runner-side env
 file; default is `/dev/null`. Protect that file and supply any required app secrets
 through an approved mechanism. The workflow exports HOST_PORT itself; do not
 hard-code a conflicting port. Do not print resolved Compose configuration or
