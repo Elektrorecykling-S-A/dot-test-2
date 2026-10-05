@@ -236,26 +236,20 @@ function isApiResult(value: unknown): value is ApiResult {
 // An explicit stack also avoids recursive JavaScript calls for deeply nested JSON.
 function responseCard(body: unknown): HTMLDivElement {
   const root = document.createElement('div');
-  const pending: { card: HTMLDivElement; value: unknown; name?: string }[] = [{ card: root, value: body }];
+  const pending: { card: HTMLDivElement; value: unknown }[] = [{ card: root, value: body }];
   const typeLabels: Record<string, string> = {
     object: 'Obiekt (object)', array: 'Tablica (array)', string: 'Tekst (string)',
     number: 'Liczba (number)', boolean: 'Wartość logiczna (boolean)', null: 'Brak wartości (null)',
   };
   while (pending.length > 0) {
-    const { card, value, name } = pending.pop()!;
+    const { card, value } = pending.pop()!;
     const type = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
-    card.className = 'response-card';
+    card.classList.add('response-card');
     card.dataset.type = type;
     const heading = document.createElement('div');
     heading.className = 'response-type';
     heading.textContent = typeLabels[type] ?? type;
     card.append(heading);
-    if (name !== undefined) {
-      const label = document.createElement('div');
-      label.className = 'response-key';
-      label.textContent = name;
-      card.append(label);
-    }
     const content = document.createElement('div');
     content.className = 'response-value';
     card.append(content);
@@ -264,8 +258,25 @@ function responseCard(body: unknown): HTMLDivElement {
       if (entries.length === 0) content.textContent = Array.isArray(value) ? '[]' : '{}';
       for (const [key, child] of entries) {
         const childCard = document.createElement('div');
-        content.append(childCard);
-        pending.push({ card: childCard, value: child, name: Array.isArray(value) ? `[${key}]` : JSON.stringify(key) });
+        const entry = document.createElement('div');
+        if (Array.isArray(value)) {
+          entry.className = 'response-array-row';
+          const index = document.createElement('span');
+          index.className = 'response-index';
+          index.textContent = key;
+          index.setAttribute('aria-label', `Indeks ${key}`);
+          entry.append(index, childCard);
+        } else {
+          entry.className = 'response-property';
+          const keyCard = document.createElement('div');
+          keyCard.className = 'response-key-card';
+          keyCard.setAttribute('aria-label', 'Klucz');
+          childCard.setAttribute('aria-label', 'Wartość');
+          entry.append(keyCard, childCard);
+          pending.push({ card: keyCard, value: key });
+        }
+        content.append(entry);
+        pending.push({ card: childCard, value: child });
       }
     } else {
       content.textContent = typeof value === 'string' ? (value === '' ? '""' : value) : String(value);

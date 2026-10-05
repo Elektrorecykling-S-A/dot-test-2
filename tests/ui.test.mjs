@@ -33,21 +33,34 @@ async function setup(fetchImpl) {
 const result = (overrides = {}) => ({url:'https://bdl.stat.gov.pl/api/v1/years?format=json&lang=pl', status:200, statusText:'OK', durationMs:12, headers:{'content-type':'application/json'}, body:{results:[{zero:0, flag:false, missing:null}]}, ...overrides});
 const response = value => new Response(JSON.stringify(value), {headers:{'content-type':'application/json'}});
 
-function assertCard(card, value, name) {
+function assertCard(card, value) {
   assert.ok(card.classList.contains('response-card'));
   const type = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
   assert.equal(card.dataset.type, type);
   assert.equal(card.firstElementChild.className, 'response-type');
   assert.match(card.firstElementChild.textContent, new RegExp(`\\(${type}\\)`));
-  const label = [...card.children].find(child => child.className === 'response-key');
-  assert.equal(label?.textContent, name);
+  assert.equal(card.children.length, 2);
   const content = card.lastElementChild;
   assert.equal(content.className, 'response-value');
   if (value !== null && typeof value === 'object') {
     const entries = Object.entries(value);
     assert.equal(content.children.length, entries.length);
     if (!entries.length) assert.equal(content.textContent, Array.isArray(value) ? '[]' : '{}');
-    entries.forEach(([key, child], index) => assertCard(content.children[index], child, Array.isArray(value) ? `[${key}]` : JSON.stringify(key)));
+    entries.forEach(([key, child], index) => {
+      const entry = content.children[index];
+      assert.equal(entry.children.length, 2);
+      if (Array.isArray(value)) {
+        assert.equal(entry.className, 'response-array-row');
+        assert.equal(entry.firstElementChild.className, 'response-index');
+        assert.equal(entry.firstElementChild.textContent, key);
+        assert.equal(entry.firstElementChild.getAttribute('aria-label'), `Indeks ${key}`);
+      } else {
+        assert.equal(entry.className, 'response-property');
+        assert.ok(entry.firstElementChild.classList.contains('response-key-card'));
+        assertCard(entry.firstElementChild, key);
+      }
+      assertCard(entry.lastElementChild, child);
+    });
   } else {
     assert.equal(content.children.length, 0);
     assert.equal(content.textContent, typeof value === 'string' ? (value === '' ? '""' : value) : String(value));
@@ -182,4 +195,16 @@ test('UI: copy and download retain the full JSON body rather than card labels', 
     else delete navigator.clipboard;
     URL.createObjectURL = originalCreate; URL.revokeObjectURL = originalRevoke;
   }
+});
+
+
+test('UI: object keys are full typed cards and array indexes sit outside each value card', async () => {
+  const body = {'': {'a\nb': [false, {'<b>key</b>': null}, []]}, items: Array.from({length: 12}, (_, i) => i)};
+  const ui = await setup(async () => response(result({body})));
+  ui.submit(); await tick(); await tick();
+  assertCard(ui.get('response-json').firstElementChild, body);
+  assert.equal(ui.get('response-json').querySelector('b'), null);
+  const row = [...ui.get('response-json').querySelectorAll('.response-array-row')].find(row => row.firstElementChild.textContent === '11');
+  assert.ok(row);
+  assert.equal(row.lastElementChild.querySelector('.response-index'), null);
 });
