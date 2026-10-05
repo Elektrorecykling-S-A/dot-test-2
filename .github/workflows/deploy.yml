@@ -33,8 +33,9 @@ jobs:
     env:
       # Change this path if the deployment Compose file has another name.
       DEPLOY_COMPOSE_FILE: compose.yaml
-      # Set a repository/environment variable to expose another interface.
-      BIND_ADDRESS: ${{ vars.DEPLOY_BIND_ADDRESS || '127.0.0.1' }}
+      # Future deploys publish on all host interfaces unless explicitly restricted.
+      # Set DEPLOY_BIND_ADDRESS to a specific host IP or 127.0.0.1 to narrow access.
+      BIND_ADDRESS: ${{ vars.DEPLOY_BIND_ADDRESS || '0.0.0.0' }}
       # Optional ABSOLUTE path to a runner-side, read-only configuration file.
       # No implicit checkout .env file is loaded for interpolation.
       DEPLOY_ENV_FILE: ${{ vars.DEPLOY_ENV_FILE || '/dev/null' }}
