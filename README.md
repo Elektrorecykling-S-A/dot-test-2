@@ -20,7 +20,7 @@ Otwórz http://127.0.0.1:8080. `npm run dev` kompiluje aplikację raz i uruchami
 
 1. Wybierz metodę lub gotowy przykład: jednostki „Warszawa”, dane dla zmiennej albo dostępne lata.
 2. Uzupełnij wymagane pola. Identyfikatory jednostek pozostają tekstem, więc zachowują zera wiodące. Listy wartości wpisuj po przecinku; wysyłamy je jako powtarzane parametry.
-3. Sprawdź adres zapytania i kliknij „Wyślij zapytanie”. Odpowiedź pokazuje kod HTTP GUS, czas oraz pełny JSON / tekst w zagnieżdżonych prostokątnych kontenerach. Każdy kontener pokazuje typ i wartość. Pola obiektu mają pełny kontener klucza połączony dolną krawędzią z kontenerem wartości. Indeksy tablic są na lewym marginesie, przy górnym lewym rogu kontenera wartości; puste obiekty, tablice i tekst pozostają widoczne. Kopiowanie i pobieranie zachowują pełną odpowiedź JSON. Możesz anulować żądanie.
+3. Sprawdź adres zapytania i kliknij „Wyślij zapytanie”. Odpowiedź pokazuje kod HTTP GUS, czas oraz pełny JSON / tekst w zagnieżdżonych prostokątnych kontenerach. Każdy kontener pokazuje typ i wartość. Pola obiektu mają pełny kontener klucza połączony dolną krawędzią z kontenerem wartości. Cyfry indeksów tablic są ułożone pionowo na lewym marginesie o stałej szerokości, przy górnym lewym rogu kontenera wartości; puste obiekty, tablice i tekst pozostają widoczne. Kopiowanie i pobieranie zachowują pełną odpowiedź JSON. Możesz anulować żądanie.
 4. `page` jest numerowane od 0, `page-size` od 1 do 100. Zmieniaj stronę ręcznie; aplikacja nie pobiera całych zbiorów automatycznie.
 5. Po błędzie 429 odczekaj czas wskazany przez GUS. Aplikacja nie ponawia zapytań automatycznie i nie omija limitów API.
 

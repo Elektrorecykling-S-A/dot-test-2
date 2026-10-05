@@ -208,3 +208,26 @@ test('UI: object keys are full typed cards and array indexes sit outside each va
   assert.ok(row);
   assert.equal(row.lastElementChild.querySelector('.response-index'), null);
 });
+
+
+test('UI: array indexes retain full numbers and a fixed-width upright vertical layout', async () => {
+  const body = Array.from({length: 102}, (_, index) => index);
+  const ui = await setup(async () => response(result({body})));
+  ui.submit(); await tick(); await tick();
+  assertCard(ui.get('response-json').firstElementChild, body);
+  const rows = ui.get('response-json').querySelectorAll('.response-array-row');
+  for (const index of [0, 9, 10, 99, 100, 101]) {
+    assert.equal(rows[index].firstElementChild.textContent, String(index));
+    assert.equal(rows[index].firstElementChild.getAttribute('aria-label'), `Indeks ${index}`);
+  }
+  // DOM tests do not perform layout. Pin the CSS contract separately so the
+  // index gutter cannot grow with digit count or rotate the digits sideways.
+  const css = await readFile(new URL('../public/style.css', import.meta.url), 'utf8');
+  const rowRule = css.match(/\.response-array-row\s*\{([^}]+)\}/)[1];
+  const indexRule = css.match(/\.response-index\s*\{([^}]+)\}/)[1];
+  assert.match(rowRule, /grid-template-columns:\s*1\.65em minmax\(min-content, 1fr\)/);
+  assert.match(rowRule, /align-items:\s*start/);
+  assert.match(indexRule, /writing-mode:\s*vertical-rl/);
+  assert.match(indexRule, /text-orientation:\s*upright/);
+  assert.match(indexRule, /width:\s*1\.65em/);
+});
